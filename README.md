@@ -8,11 +8,40 @@ This project has been made because it is difficult to quickly find the jobs that
 ## What does it do?
 Run it with:
 ~~~
-python crawl.py -k keywords.csv --auth auth.txt -o output_folder/ --waterloo
+python crawl.py -k keywords.csv --login auth.txt -o output_folder/ --waterloo
 or
-python crawl.py -k keywords.csv --auth auth.txt -o output_folder/ --mcmaster --waterloo
+python crawl.py -k keywords.csv --login auth.txt -o output_folder/ --mcmaster --waterloo
 ~~~
 This will run through all the job postings on Waterloo Works or Oscar Plus with your authentication and download all the job postings and descriptions of the jobs that contain the keywords in the _keywords.csv_ file
+
+Running help with:
+~~~
+$ python crawl.py -h
+~~~
+Will get you help that looks like this:
+
+~~~
+OscarWorks Crawler (https://github.com/kunalchandan/OscarWorks_Crawler) is a
+command line tool for extracting the job descriptions from Waterloo Works or
+Oscar Plus (as of 2019 Feb) that contain the keywords specified in
+keywords.csv the authorization to enter the sites is user provided in the
+auth.txt file
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -k CSV_FILE, --keywords CSV_FILE
+                        The keywords comma separated values file, default
+                        value is "keywords.csv".
+  -l LOGIN_FILE, --login LOGIN_FILE
+                        The login file, default value is "auth.txt".
+  -o OUTPUT_FOLDER, --output-folder OUTPUT_FOLDER
+                        The output folder, default value is "query_find/".
+
+Required Arguments:
+  -m, --mcmaster        Flag specifies to log into McMaster's OscarPlus
+  -w, --waterloo        Flag specifies to log into Waterloo's WaterlooWorks
+~~~
+
 # Requirements
 ```
 pip install selenium bs4 httplib2
