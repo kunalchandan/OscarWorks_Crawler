@@ -5,6 +5,9 @@ This is a web crawler designed to crawl through Waterloo Works and/or Oscar Plus
 
 This project has been made because it is difficult to quickly find the jobs that have the matching keywords you want.
 
+The WaterlooWorks Crawler is still an in-progress project. It does not work, but I will have it working once I get back on my study term.
+
+I still need to figure out a nice way for running both crawlers in parallel.
 ## What does it do?
 Run it with:
 ~~~

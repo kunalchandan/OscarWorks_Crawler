@@ -6,11 +6,22 @@ import re
 import argparse
 import os
 
+from typing import List
 
-oscar_postings_url = "https://www.oscarplusmcmaster.ca/myAccount/jobPostings/general/postings.htm"
+Login = List[str]
+Keywords = List[str]
+
+OSCAR: str = 'OSCAR'
+WATER: str = 'WATER'
+
+oscar_home_url: str = "https://cap.mcmaster.ca/mcauth/login.jsp?app_id=783&app_name=orbis"
+water_home_url: str = "https://cas.uwaterloo.ca/cas/login?service=https://waterlooworks.uwaterloo.ca/waterloo.htm"
+
+oscar_postings_url: str = "https://www.oscarplusmcmaster.ca/myAccount/jobPostings/general/postings.htm"
+water_postings_url: str = "https://waterlooworks.uwaterloo.ca/myAccount/co-op/coop-postings.htm"
 
 
-def define_parser():
+def define_parser() -> argparse.ArgumentParser:
     # Define CLI Parser arguments
     parser = argparse.ArgumentParser(
         description='OscarWorks Crawler (https://github.com/kunalchandan/OscarWorks_Crawler) is a command line tool '
@@ -40,65 +51,76 @@ def define_parser():
     return parser
 
 
-def define_driver_oscar():
+def define_driver(site: str) -> webdriver:
     driver = webdriver.Chrome(ChromeDriverManager().install())
-    driver.get("https://cap.mcmaster.ca/mcauth/login.jsp?app_id=783&app_name=orbis")
+    if site == OSCAR:
+        driver.get(OSCAR)
+    elif site == WATER:
+        driver.get(WATER)
     return driver
 
 
-def define_driver_works():
-    driver = webdriver.Chrome(ChromeDriverManager().install())
-    driver.get("https://cas.uwaterloo.ca/cas/login?service=https://waterlooworks.uwaterloo.ca/waterloo.htm")
-    return driver
-
-
-def retrieve_auth(args):
+def retrieve_auth(args: argparse.Namespace) -> Login:
     location = '{}\\{}'.format(os.path.dirname(os.path.realpath(__file__)), args.login)
     try:
         f = open(location, 'r')
         use = f.readline().split('=')[1].strip()
         pas = f.readline().split('=')[1].strip()
     except IOError:
-        print 'ERROR:: {} file not found, does it have the wrong name? or does it even exist?'.format(args.login)
-    return use, pas
+        raise IOError('ERROR:: {} file not found, does it have a wrong name? or does it even exist?'.format(args.login))
+    return [use, pas]
 
 
-def retrieve_keywords(args):
+def retrieve_keywords(args: argparse.Namespace) -> Keywords:
     location = '{}\\{}'.format(os.path.dirname(os.path.realpath(__file__)), args.keywords)
     try:
         f = open(location, 'r')
         contents = f.read().replace('\n', ',')
         contents.strip(',')
-        contents.split(',')
+        contents = contents.split(',')
     except IOError:
-        print 'ERROR:: {} file not found, does it have the wrong name? or does it even exist?'.format(args.login)
+        raise IOError('ERROR:: {} file not found, does it have a wrong name? or does it exist?'.format(args.keywords))
     return contents
 
 
-def go_to_nth_page(web_driver, counter):
+def go_to_nth_page(web_driver: webdriver, counter: int) -> None:
     # STEP THROUGH TO Nth PAGE
     for _ in range(counter):
+        # \xc2 is used because python is in utf-8 encoding.
         step_forward = web_driver.find_element_by_link_text('\xc2')
         step_forward.click()
         time.sleep(.5)
 
 
-def go_to_postings(web_driver):
-    web_driver.get(oscar_postings_url)
-    web_driver.find_element_by_link_text("View all available postings").click()
+def go_to_postings(web_driver: webdriver, site: str) -> None:
+    if site == OSCAR:
+        web_driver.get(oscar_postings_url)
+        web_driver.find_element_by_link_text("View all available postings").click()
+    if site == WATER:
+        web_driver.get(water_postings_url)
+        web_driver.find_element_by_link_text("View all available postings").click()
 
 
-def login(user_id, pin, web_driver):
-    field = web_driver.find_element_by_id("user_id")
-    field.send_keys(user_id)
+def login(user_id: str, pin: str, site: str, web_driver: webdriver) -> None:
+    if site == OSCAR:
+        field = web_driver.find_element_by_id("user_id")
+        field.send_keys(user_id)
 
-    field = web_driver.find_element_by_id("pin")
-    field.send_keys(pin)
+        field = web_driver.find_element_by_id("pin")
+        field.send_keys(pin)
 
-    field.send_keys(Keys.RETURN)
+        field.send_keys(Keys.RETURN)
+    if site == WATER:
+        field = web_driver.find_element_by_id("user_id")
+        field.send_keys(user_id)
+
+        field = web_driver.find_element_by_id("pin")
+        field.send_keys(pin)
+
+        field.send_keys(Keys.RETURN)
 
 
-def gather_postings(web_driver):
+def gather_postings(web_driver: webdriver) -> Keywords:
     pattern = re.compile("posting[0-9]{4,}")
 
     src = web_driver.page_source
@@ -107,12 +129,12 @@ def gather_postings(web_driver):
     return matches
 
 
-def get_total_postings(driver):
+def get_total_postings(driver: webdriver) -> int:
     total = driver.find_element_by_css_selector("span[class='badge badge-info']")
     return int(total.text)
 
 
-def save_posting(args, description, job_id, job_name):
+def save_posting(args: argparse.Namespace, description: str, job_id: str, job_name: str) -> None:
     try:
         location = '{}\\{}{}-{}.txt'.format(os.path.dirname(os.path.realpath(__file__)),
                                             args.output_folder,
@@ -125,34 +147,41 @@ def save_posting(args, description, job_id, job_name):
         try:
             os.mkdir('{}\\{}'.format(os.path.dirname(os.path.realpath(__file__)), args.output_folder))
         except (IOError, OSError):
-            print 'ERROR:: There was some problem in making the output folder? Please create it manually and/or make ' \
-                  'sure you have Read/Write Access'
+            print('ERROR:: There was some problem in making the output folder? Please create it manually and/or make ' \
+                  'sure you have Read/Write Access')
             raise OSError('Refer to message above')
 
 
 def main():
     args = define_parser().parse_args()
-    if args.mcmaster:
-        driver = define_driver_oscar()
-    if args.waterloo:
-        driver = define_driver_works()
     if not (args.mcmaster or args.waterloo):
         raise SyntaxError('You have not specified which site to log into')
-    # TODO:: Complete defintions for waterloo works
+    driver = ''
+    if args.mcmaster:
+        driver = define_driver(OSCAR)
+    if args.waterloo:
+        driver = define_driver(WATER)
+    # TODO:: Complete definitions  for waterloo works
     # TODO:: Consider redesigning code for parallel login of both systems
 
+    # GET KEYWORDS
     keywords = retrieve_keywords(args)
-
     # GET LOGIN
     username, password = retrieve_auth(args)
+
     # LOGIN
-    login(username, password, driver)
-    # GET TO POSTINGS
-    go_to_postings(driver)
+    if args.mcmaster:
+        login(username, password, OSCAR, driver)
+        # GET TO POSTINGS
+        go_to_postings(driver, OSCAR)
+    if args.waterloo:
+        login(username, password, WATER, driver)
+        # GET TO POSTINGS
+        go_to_postings(driver, WATER)
 
     total = get_total_postings(driver)
     # STEP THROUGH EACH POSTING
-    counter = 0
+    counter: int = 0
     while counter*100 < total:
         go_to_nth_page(driver, counter)
 
@@ -166,20 +195,20 @@ def main():
             # SEE IF PAGE CONTAINS ANYTHING FROM KEYWORDS
             tables = driver.find_elements_by_css_selector("table[class='table table-bordered']")
             job_name = driver.find_element_by_class_name('span7').text.replace('\n', ' ').strip('.')
-            description = ''
+            description: str = ''
             for table in tables:
                 description += '\n' + table.text.encode('ascii', 'ignore')
             if any(keys in description for keys in keywords):
                 # Save job to output folder
-                print 'lel, this job aight; Posting ID: {}'.format(each_id)
-                print job_name
+                print('lel, this job aight; Posting ID: {}'.format(each_id))
+                print(job_name)
                 job_name = (''.join(e for e in job_name if e.isalnum())).encode('ascii', 'ignore').strip()
 
-                save_posting(args, description, each_id, job_name)
+                save_posting(args, description, each_id, str(job_name))
         go_back = driver.find_element_by_link_text('Back to Search Results')
         go_back.send_keys(Keys.ENTER)
         counter += 1
-        print 'Finished Page {}'.format(counter)
+        print('Finished Page {}'.format(counter))
     # Parsing strings can be avoided since all links match pattern
     # element = driver.find_element_by_id(matches[0])
     # inner_html = element.get_attribute('innerHTML')
@@ -187,8 +216,6 @@ def main():
 
     time.sleep(5)
     driver.close()
-
-# https://www.oscarplusmcmaster.ca/myAccount/jobPostings/general/postings.htm?action=displayPosting&postingId=101926&npfGroup=
 
 
 if __name__ == "__main__":
