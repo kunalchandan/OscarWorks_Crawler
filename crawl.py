@@ -12,7 +12,7 @@ Login = List[str]
 Keywords = List[str]
 
 OSCAR: str = 'OSCAR'
-WATER: str = 'WATER'
+WORKS: str = 'WORKS'
 
 oscar_home_url: str = "https://cap.mcmaster.ca/mcauth/login.jsp?app_id=783&app_name=orbis"
 water_home_url: str = "https://cas.uwaterloo.ca/cas/login?service=https://waterlooworks.uwaterloo.ca/waterloo.htm"
@@ -31,17 +31,17 @@ def define_parser() -> argparse.ArgumentParser:
     req = parser.add_argument_group('Required Arguments')
 
     parser.add_argument('-k', '--keywords',
-                     help='The keywords comma separated values file, default value is "keywords.csv".',
-                     default='keywords.csv',
-                     metavar='CSV_FILE')
+                        help='The keywords comma separated values file, default value is "keywords.csv".',
+                        default='keywords.csv',
+                        metavar='CSV_FILE')
     parser.add_argument('-l', '--login',
-                     help='The login file, default value is "auth.txt".',
-                     default='auth.txt',
-                     metavar='LOGIN_FILE')
+                        help='The login file, default value is "auth.txt".',
+                        default='auth.txt',
+                        metavar='LOGIN_FILE')
     parser.add_argument('-o', '--output-folder',
-                     help='The output folder, default value is "query_find/".',
-                     default='query_find\\',
-                     metavar='OUTPUT_FOLDER')
+                        help='The output folder, default value is "query_find/".',
+                        default='query_find\\',
+                        metavar='OUTPUT_FOLDER')
     req.add_argument('-m', '--mcmaster',
                      help='Flag specifies to log into McMaster\'s OscarPlus',
                      action='store_true')
@@ -54,9 +54,9 @@ def define_parser() -> argparse.ArgumentParser:
 def define_driver(site: str) -> webdriver:
     driver = webdriver.Chrome(ChromeDriverManager().install())
     if site == OSCAR:
-        driver.get(OSCAR)
-    elif site == WATER:
-        driver.get(WATER)
+        driver.get(oscar_home_url)
+    elif site == WORKS:
+        driver.get(water_home_url)
     return driver
 
 
@@ -96,7 +96,7 @@ def go_to_postings(web_driver: webdriver, site: str) -> None:
     if site == OSCAR:
         web_driver.get(oscar_postings_url)
         web_driver.find_element_by_link_text("View all available postings").click()
-    if site == WATER:
+    if site == WORKS:
         web_driver.get(water_postings_url)
         web_driver.find_element_by_link_text("View all available postings").click()
 
@@ -110,7 +110,7 @@ def login(user_id: str, pin: str, site: str, web_driver: webdriver) -> None:
         field.send_keys(pin)
 
         field.send_keys(Keys.RETURN)
-    if site == WATER:
+    if site == WORKS:
         field = web_driver.find_element_by_id("user_id")
         field.send_keys(user_id)
 
@@ -160,7 +160,7 @@ def main():
     if args.mcmaster:
         driver = define_driver(OSCAR)
     if args.waterloo:
-        driver = define_driver(WATER)
+        driver = define_driver(WORKS)
     # TODO:: Complete definitions  for waterloo works
     # TODO:: Consider redesigning code for parallel login of both systems
 
@@ -175,14 +175,14 @@ def main():
         # GET TO POSTINGS
         go_to_postings(driver, OSCAR)
     if args.waterloo:
-        login(username, password, WATER, driver)
+        login(username, password, WORKS, driver)
         # GET TO POSTINGS
-        go_to_postings(driver, WATER)
+        go_to_postings(driver, WORKS)
 
     total = get_total_postings(driver)
     # STEP THROUGH EACH POSTING
     counter: int = 0
-    while counter*100 < total:
+    while counter * 100 < total:
         go_to_nth_page(driver, counter)
 
         # GATHER POSTING IDS ON PAGE
@@ -197,7 +197,7 @@ def main():
             job_name = driver.find_element_by_class_name('span7').text.replace('\n', ' ').strip('.')
             description: str = ''
             for table in tables:
-                description += '\n' + table.text.encode('ascii', 'ignore')
+                description += '\n' + str(table.text.encode('ascii', 'ignore'))
             if any(keys in description for keys in keywords):
                 # Save job to output folder
                 print('lel, this job aight; Posting ID: {}'.format(each_id))
