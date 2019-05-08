@@ -1,3 +1,4 @@
+# -*- coding: latin-1 -*-
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
 from webdriver_manager.chrome import ChromeDriverManager
@@ -86,8 +87,9 @@ def retrieve_keywords(args: argparse.Namespace) -> Keywords:
 def go_to_nth_page(web_driver: webdriver, counter: int) -> None:
     # STEP THROUGH TO Nth PAGE
     for _ in range(counter):
-        # \xc2 is used because python is in utf-8 encoding.
-        step_forward = web_driver.find_element_by_link_text('\xc2')
+        # This special character can be used because of the header.
+        # plain '»' fails on WW because they pad many spaces
+        step_forward = web_driver.find_element_by_partial_link_text('»')
         step_forward.click()
         time.sleep(.5)
 
@@ -98,7 +100,7 @@ def go_to_postings(web_driver: webdriver, site: str) -> None:
         web_driver.find_element_by_link_text("View all available postings").click()
     if site == WORKS:
         web_driver.get(water_postings_url)
-        web_driver.find_element_by_link_text("View all available postings").click()
+        web_driver.find_element_by_css_selector(".btn btn-primary btn-small".replace(' ', '.')).click()
 
 
 def login(user_id: str, pin: str, site: str, web_driver: webdriver) -> None:
@@ -111,10 +113,10 @@ def login(user_id: str, pin: str, site: str, web_driver: webdriver) -> None:
 
         field.send_keys(Keys.RETURN)
     if site == WORKS:
-        field = web_driver.find_element_by_id("user_id")
+        field = web_driver.find_element_by_id("username")
         field.send_keys(user_id)
 
-        field = web_driver.find_element_by_id("pin")
+        field = web_driver.find_element_by_id("password")
         field.send_keys(pin)
 
         field.send_keys(Keys.RETURN)
@@ -147,7 +149,7 @@ def save_posting(args: argparse.Namespace, description: str, job_id: str, job_na
         try:
             os.mkdir('{}\\{}'.format(os.path.dirname(os.path.realpath(__file__)), args.output_folder))
         except (IOError, OSError):
-            print('ERROR:: There was some problem in making the output folder? Please create it manually and/or make ' \
+            print('ERROR:: There was some problem in making the output folder? Please create it manually and/or make '
                   'sure you have Read/Write Access')
             raise OSError('Refer to message above')
 
@@ -191,11 +193,20 @@ def main():
         # STEP THROUGH POSTINGS ON PAGE
         for each_id in matches:
             each_id = each_id[7:]
-            driver.get('{}?action=displayPosting&postingId={}&npfGroup='.format(oscar_postings_url, each_id))
+            if args.mcmaster:
+                driver.get('{}?action=displayPosting&postingId={}&npfGroup='.format(oscar_postings_url, each_id))
+            if args.waterloo:
+                driver.get('{}?action=displayPosting&postingId={}&npfGroup='.format(water_postings_url, each_id))
             # SEE IF PAGE CONTAINS ANYTHING FROM KEYWORDS
             tables = driver.find_elements_by_css_selector("table[class='table table-bordered']")
-            job_name = driver.find_element_by_class_name('span7').text.replace('\n', ' ').strip('.')
+            job_name = ''
             description: str = ''
+
+            if args.mcmaster:
+                job_name = driver.find_element_by_class_name('span7').text.replace('\n', ' ').strip('.')
+            if args.waterloo:
+                job_name = driver.find_element_by_class_name('span6').text.replace('\n', ' ').strip('.')
+
             for table in tables:
                 description += '\n' + str(table.text.encode('ascii', 'ignore'))
             if any(keys in description for keys in keywords):
